@@ -4,7 +4,6 @@ import "base:runtime"
 import "core:bytes"
 import "core:c"
 import "core:fmt"
-import "core:strings"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
 
@@ -90,19 +89,19 @@ main :: proc() {
 }
 
 compile_shader_program :: proc() -> (program: u32, err_msg: string, ok: bool) {
+    err_buf: [512]u8
+
     vertex_shader := gl.CreateShader(gl.VERTEX_SHADER)
     gl.ShaderSource(vertex_shader, 1, &VERTEX_SHADER, nil)
     gl.CompileShader(vertex_shader)
-    if err, ok := check_shader_compile_error(vertex_shader); !ok {
-        defer delete(err)
+    if err, ok := check_shader_compile_error(vertex_shader, err_buf[:]); !ok {
         return 0, fmt.aprintf("error compiling vertex shader: %s", err), false
     }
 
     fragment_shader := gl.CreateShader(gl.FRAGMENT_SHADER)
     gl.ShaderSource(fragment_shader, 1, &FRAGMENT_SHADER, nil)
     gl.CompileShader(fragment_shader)
-    if err, ok := check_shader_compile_error(fragment_shader); !ok {
-        defer delete(err)
+    if err, ok := check_shader_compile_error(fragment_shader, err_buf[:]); !ok {
         return 0, fmt.aprintf("error compiling fragment shader: %s", err), false
     }
 
@@ -110,8 +109,7 @@ compile_shader_program :: proc() -> (program: u32, err_msg: string, ok: bool) {
     gl.AttachShader(shader_program, vertex_shader)
     gl.AttachShader(shader_program, fragment_shader)
     gl.LinkProgram(shader_program)
-    if err, ok := check_shader_program_error(shader_program); !ok {
-        defer delete(err)
+    if err, ok := check_shader_program_error(shader_program, err_buf[:]); !ok {
         return 0, fmt.aprintf("error linking shader program: %s", err), false
     }
 
@@ -122,41 +120,38 @@ compile_shader_program :: proc() -> (program: u32, err_msg: string, ok: bool) {
 }
 
 // on failure, error message must be freed
-check_shader_compile_error :: proc(shader: u32) -> (string, bool) {
+check_shader_compile_error :: proc(shader: u32, buf: []u8) -> ([]u8, bool) {
     success: i32
     gl.GetShaderiv(shader, gl.COMPILE_STATUS, &success)
     if bool(success) {
-        return "", true
+        return {}, true
     }
 
-    buf: [512]u8
-    gl.GetShaderInfoLog(shader, size_of(buf), nil, raw_data(buf[:]))
+    gl.GetShaderInfoLog(shader, i32(len(buf)), nil, raw_data(buf))
 
-    terminator_idx := bytes.index_byte(buf[:], 0)
+    terminator_idx := bytes.index_byte(buf, 0)
     if terminator_idx == -1 {
         terminator_idx = len(buf)
     }
 
-    return strings.clone_from(buf[:terminator_idx]), false
+    return buf[:terminator_idx], false
 }
 
 // on failure, error message must be freed
-check_shader_program_error :: proc(program: u32) -> (string, bool) {
+check_shader_program_error :: proc(program: u32, buf: []u8) -> ([]u8, bool) {
     success: i32
     gl.GetProgramiv(program, gl.LINK_STATUS, &success)
     if bool(success) {
-        return "", true
+        return {}, true
     }
+    gl.GetProgramInfoLog(program, i32(len(buf)), nil, raw_data(buf))
 
-    buf: [512]u8
-    gl.GetProgramInfoLog(program, size_of(buf), nil, raw_data(buf[:]))
-
-    terminator_idx := bytes.index_byte(buf[:], 0)
+    terminator_idx := bytes.index_byte(buf, 0)
     if terminator_idx == -1 {
         terminator_idx = len(buf)
     }
 
-    return strings.clone_from(buf[:terminator_idx]), false
+    return buf[:terminator_idx], false
 }
 
 process_input :: proc "c" (window: glfw.WindowHandle) {
