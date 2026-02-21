@@ -40,18 +40,34 @@ main :: proc() {
         return
     }
 
+
     // odinfmt: disable
+
+    // TRIANGLE
+
     vertices := [?]f32{
-         0.5,  0.5, 0.0,  // top right
-         0.5, -0.5, 0.0,  // bottom right
-        -0.5, -0.5, 0.0,  // bottom left
-        -0.5,  0.5, 0.0,  // top left
+        -0.5, -0.5, 0.0,
+         0.5, -0.5, 0.0,
+         0.0,  0.5, 0.0,
+    }
+    indices := [?]u32{
+        0, 1, 2,
     }
 
-    indices := [?]u32{
-        0, 1, 3,
-        1, 2, 3,
-    }
+
+    // RECTANGLE
+
+    // vertices := [?]f32{
+    //      0.5,  0.5, 0.0,  // top right
+    //      0.5, -0.5, 0.0,  // bottom right
+    //     -0.5, -0.5, 0.0,  // bottom left
+    //     -0.5,  0.5, 0.0,  // top left
+    // }
+    // indices := [?]u32{
+    //     0, 1, 3,
+    //     1, 2, 3,
+    // }
+
     // odinfmt: enable
 
     vao, vbo, ebo: u32
