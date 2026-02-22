@@ -3,7 +3,7 @@ package main
 import "base:runtime"
 import "core:log"
 import "core:mem"
-import "core:os/os2"
+import "core:os"
 import gl "vendor:OpenGL"
 
 ShaderType :: enum (u32) {
@@ -20,7 +20,7 @@ Compile_Error :: enum {
 }
 
 Error :: union #shared_nil {
-    os2.Error,
+    os.Error,
     Compile_Error,
 }
 
@@ -86,7 +86,7 @@ shader_init :: proc(vertex_path, fragment_path: string) -> (Shader, Error) {
 }
 
 create_shader :: proc(shader_path: string, type: ShaderType, allocator: mem.Allocator) -> (u32, Error) {
-    shader_data, err := os2.read_entire_file_from_path(shader_path, allocator)
+    shader_data, err := os.read_entire_file_from_path(shader_path, allocator)
     if err != nil {
         return 0, err
     }

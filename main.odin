@@ -33,7 +33,7 @@ main :: proc() {
 
     gl.load_up_to(3, 3, glfw.gl_set_proc_address)
 
-    //gl.Viewport(0, 0, 800, 600)
+    gl.Viewport(0, 0, 800, 600)
     glfw.SetFramebufferSizeCallback(window, framebuffer_callback)
 
     shader_program, err := shader_init("./shaders/vertex.glsl", "./shaders/fragment.glsl")
