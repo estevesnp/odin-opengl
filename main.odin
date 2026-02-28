@@ -93,16 +93,18 @@ main :: proc() {
     // gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
 
     stbi.set_flip_vertically_on_load(1)
-    width, height, nr_channels: i32
-    img_data := stbi.load("./textures/container.jpg", &width, &height, &nr_channels, 0)
+    box_texture := load_texture("./textures/container.jpg", gl.RGB)
+    smile_texture := load_texture("./textures/awesomeface.png", gl.RGBA)
 
-    texture: u32
-    gl.GenTextures(1, &texture)
-    gl.BindTexture(gl.TEXTURE_2D, texture)
-    gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, img_data)
-    gl.GenerateMipmap(gl.TEXTURE_2D)
+    gl.ActiveTexture(gl.TEXTURE0)
+    gl.BindTexture(gl.TEXTURE_2D, box_texture)
 
-    stbi.image_free(img_data)
+    gl.ActiveTexture(gl.TEXTURE1)
+    gl.BindTexture(gl.TEXTURE_2D, smile_texture)
+
+    shader_use(shader_program)
+    shader_set_i32(shader_program, "texture1", 0)
+    shader_set_i32(shader_program, "texture2", 1)
 
     for !glfw.WindowShouldClose(window) {
         process_input(window)
@@ -110,15 +112,27 @@ main :: proc() {
         gl.ClearColor(0.2, 0.3, 0.3, 1)
         gl.Clear(gl.COLOR_BUFFER_BIT)
 
-        shader_use(shader_program)
-
-        gl.BindTexture(gl.TEXTURE_2D, texture)
         gl.BindVertexArray(vao)
         gl.DrawElements(gl.TRIANGLES, len(indices), gl.UNSIGNED_INT, nil)
 
         glfw.SwapBuffers(window)
         glfw.PollEvents()
     }
+}
+
+load_texture :: proc(filename: cstring, format: u32) -> u32 {
+    width, height, nr_channels: i32
+    data := stbi.load(filename, &width, &height, &nr_channels, 0)
+    defer stbi.image_free(data)
+
+    texture: u32
+
+    gl.GenTextures(1, &texture)
+    gl.BindTexture(gl.TEXTURE_2D, texture)
+    gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, format, gl.UNSIGNED_BYTE, data)
+    gl.GenerateMipmap(gl.TEXTURE_2D)
+
+    return texture
 }
 
 process_input :: proc "c" (window: glfw.WindowHandle) {
