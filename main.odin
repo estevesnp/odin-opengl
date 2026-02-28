@@ -6,6 +6,7 @@ import "core:fmt"
 import "core:log"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
+import stbi "vendor:stb/image"
 
 VERTEX_SHADER := #load("./shaders/vertex.glsl", cstring)
 FRAGMENT_SHADER := #load("./shaders/fragment.glsl", cstring)
@@ -33,8 +34,8 @@ main :: proc() {
 
     gl.load_up_to(3, 3, glfw.gl_set_proc_address)
 
-    width, height := glfw.GetFramebufferSize(window)
-    gl.Viewport(0, 0, width, height)
+    fb_width, fb_height := glfw.GetFramebufferSize(window)
+    gl.Viewport(0, 0, fb_width, fb_height)
     glfw.SetFramebufferSizeCallback(window, framebuffer_callback)
 
     shader_program, err := shader_init("./shaders/vertex.glsl", "./shaders/fragment.glsl")
@@ -46,31 +47,18 @@ main :: proc() {
 
     // odinfmt: disable
 
-    // TRIANGLE
-
     vertices := [?]f32{
-        // positions      // colors
-         0.5, -0.5, 0.0,  1.0, 0.0, 0.0,   // bottom right
-        -0.5, -0.5, 0.0,  0.0, 1.0, 0.0,   // bottom left
-         0.0,  0.5, 0.0,  0.0, 0.0, 1.0    // top
+        // positions       // colors        // texture coords
+         0.5,  0.5, 0.0,   1.0, 0.0, 0.0,   1.0, 1.0,   // top right
+         0.5, -0.5, 0.0,   0.0, 1.0, 0.0,   1.0, 0.0,   // bottom right
+        -0.5, -0.5, 0.0,   0.0, 0.0, 1.0,   0.0, 0.0,   // bottom left
+        -0.5,  0.5, 0.0,   1.0, 1.0, 0.0,   0.0, 1.0    // top left
     }
     indices := [?]u32{
-        0, 1, 2,
+        0, 1, 3,   // first triangle
+        1, 2, 3    // second triangle
     }
 
-
-    // RECTANGLE
-
-    // vertices := [?]f32{
-    //      0.5,  0.5, 0.0,  // top right
-    //      0.5, -0.5, 0.0,  // bottom right
-    //     -0.5, -0.5, 0.0,  // bottom left
-    //     -0.5,  0.5, 0.0,  // top left
-    // }
-    // indices := [?]u32{
-    //     0, 1, 3,
-    //     1, 2, 3,
-    // }
 
     // odinfmt: enable
 
@@ -87,16 +75,34 @@ main :: proc() {
     gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo)
     gl.BufferData(gl.ELEMENT_ARRAY_BUFFER, size_of(indices), &indices, gl.STATIC_DRAW)
 
+    stride: i32 = size_of([8]f32)
+
     // positions
-    gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, size_of([6]f32), 0)
+    gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, stride, 0)
     gl.EnableVertexAttribArray(0)
 
     // colors
-    gl.VertexAttribPointer(1, 3, gl.FLOAT, gl.FALSE, size_of([6]f32), size_of([3]f32))
+    gl.VertexAttribPointer(1, 3, gl.FLOAT, gl.FALSE, stride, size_of([3]f32))
     gl.EnableVertexAttribArray(1)
+
+    // texture coords
+    gl.VertexAttribPointer(2, 2, gl.FLOAT, gl.FALSE, stride, size_of([6]f32))
+    gl.EnableVertexAttribArray(2)
 
     // wireframe polygons
     // gl.PolygonMode(gl.FRONT_AND_BACK, gl.LINE)
+
+    stbi.set_flip_vertically_on_load(1)
+    width, height, nr_channels: i32
+    img_data := stbi.load("./textures/container.jpg", &width, &height, &nr_channels, 0)
+
+    texture: u32
+    gl.GenTextures(1, &texture)
+    gl.BindTexture(gl.TEXTURE_2D, texture)
+    gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, width, height, 0, gl.RGB, gl.UNSIGNED_BYTE, img_data)
+    gl.GenerateMipmap(gl.TEXTURE_2D)
+
+    stbi.image_free(img_data)
 
     for !glfw.WindowShouldClose(window) {
         process_input(window)
@@ -106,6 +112,7 @@ main :: proc() {
 
         shader_use(shader_program)
 
+        gl.BindTexture(gl.TEXTURE_2D, texture)
         gl.BindVertexArray(vao)
         gl.DrawElements(gl.TRIANGLES, len(indices), gl.UNSIGNED_INT, nil)
 
