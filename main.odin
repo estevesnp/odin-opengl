@@ -154,14 +154,19 @@ main :: proc() {
 
     gl.Enable(gl.DEPTH_TEST)
 
+    cam: Camera = {
+        pos   = {0, 0, 3},
+        front = {0, 0, -1},
+        up    = {0, 1, 0},
+    }
+
     for !glfw.WindowShouldClose(window) {
-        process_input(window)
+        process_input(window, &cam)
 
         gl.ClearColor(0.2, 0.3, 0.3, 1)
         gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-        view: glsl.mat4 = 1
-        view *= glsl.mat4Translate({0, 0, -3})
+        view := glsl.mat4LookAt(cam.pos, cam.pos + cam.front, cam.up)
 
         projection: glsl.mat4 = 1
         projection *= glsl.mat4Perspective(glsl.radians(f32(45)), 800.0 / 600.0, 0.1, 100)
@@ -184,11 +189,15 @@ main :: proc() {
             gl.DrawArrays(gl.TRIANGLES, 0, 36)
         }
 
-        //gl.DrawElements(gl.TRIANGLES, len(indices), gl.UNSIGNED_INT, nil)
-
         glfw.SwapBuffers(window)
         glfw.PollEvents()
     }
+}
+
+Camera :: struct {
+    pos:   [3]f32,
+    front: [3]f32,
+    up:    [3]f32,
 }
 
 load_texture :: proc(filename: cstring, format: u32) -> u32 {
@@ -206,9 +215,31 @@ load_texture :: proc(filename: cstring, format: u32) -> u32 {
     return texture
 }
 
-process_input :: proc "c" (window: glfw.WindowHandle) {
+delta_time: f32 = 0
+last_frame: f32 = 0
+process_input :: proc(window: glfw.WindowHandle, cam: ^Camera) {
     if glfw.GetKey(window, glfw.KEY_Q) == glfw.PRESS {
         glfw.SetWindowShouldClose(window, true)
+    }
+
+    current_frame := f32(glfw.GetTime())
+    delta_time = current_frame - last_frame
+    last_frame = current_frame
+
+    cam_speed := 2.5 * delta_time
+
+    if glfw.GetKey(window, glfw.KEY_W) == glfw.PRESS {
+        cam.pos += cam.front * cam_speed
+    }
+    if glfw.GetKey(window, glfw.KEY_S) == glfw.PRESS {
+        cam.pos -= cam.front * cam_speed
+    }
+
+    if glfw.GetKey(window, glfw.KEY_A) == glfw.PRESS {
+        cam.pos -= glsl.normalize(glsl.cross(cam.front, cam.up)) * cam_speed
+    }
+    if glfw.GetKey(window, glfw.KEY_D) == glfw.PRESS {
+        cam.pos += glsl.normalize(glsl.cross(cam.front, cam.up)) * cam_speed
     }
 }
 
