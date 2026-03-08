@@ -96,6 +96,18 @@ main :: proc() {
         0, 1, 3,   // first triangle
         1, 2, 3    // second triangle
     }
+    cube_positions := [?]glsl.vec3 {
+        {  0.0,  0.0,  0.0  },
+        {  2.0,  5.0, -15.0 },
+        { -1.5, -2.2, -2.5  },
+        { -3.8, -2.0, -12.3 },
+        {  2.4, -0.4, -3.5  },
+        { -1.7,  3.0, -7.5  },
+        {  1.3, -2.0, -2.5  },
+        {  1.5,  2.0, -2.5  },
+        {  1.5,  0.2, -1.5  },
+        { -1.3,  1.0, -1.5  },
+    }
 
 
     // odinfmt: enable
@@ -148,22 +160,30 @@ main :: proc() {
         gl.ClearColor(0.2, 0.3, 0.3, 1)
         gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-        model: glsl.mat4 = 1
-        model *= glsl.mat4Rotate({0.5, 1, 0}, f32(glfw.GetTime()) * glsl.radians(f32(50)))
-
         view: glsl.mat4 = 1
         view *= glsl.mat4Translate({0, 0, -3})
 
         projection: glsl.mat4 = 1
-        projection *= glsl.mat4Perspective(glsl.radians(f32(45)), 800 / 600, 0.1, 100)
+        projection *= glsl.mat4Perspective(glsl.radians(f32(45)), 800.0 / 600.0, 0.1, 100)
 
         shader_use(shader)
-        shader_set(shader, "model", model)
         shader_set(shader, "view", view)
         shader_set(shader, "projection", projection)
 
         gl.BindVertexArray(vao)
-        gl.DrawArrays(gl.TRIANGLES, 0, 36)
+
+        for pos, idx in cube_positions {
+            model: glsl.mat4 = 1
+
+            model *= glsl.mat4Translate(pos)
+
+            angle := 20.0 * f32(idx)
+            model *= glsl.mat4Rotate({1, 0.3, 0.5}, glsl.radians(angle))
+
+            shader_set(shader, "model", model)
+            gl.DrawArrays(gl.TRIANGLES, 0, 36)
+        }
+
         //gl.DrawElements(gl.TRIANGLES, len(indices), gl.UNSIGNED_INT, nil)
 
         glfw.SwapBuffers(window)
