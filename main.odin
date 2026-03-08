@@ -109,12 +109,19 @@ main :: proc() {
         gl.ClearColor(0.2, 0.3, 0.3, 1)
         gl.Clear(gl.COLOR_BUFFER_BIT)
 
-        trans: glsl.mat4 = 1
-        trans *= glsl.mat4Translate({0.5, -0.5, 0})
-        trans *= glsl.mat4Rotate({0, 0, 1}, f32(glfw.GetTime()))
+        model: glsl.mat4 = 1
+        model *= glsl.mat4Rotate({1, 0, 0}, glsl.radians(f32(-55)))
+
+        view: glsl.mat4 = 1
+        view *= glsl.mat4Translate({0, 0, -3})
+
+        projection: glsl.mat4 = 1
+        projection *= glsl.mat4Perspective(glsl.radians(f32(45)), 800 / 600, 0.1, 100)
 
         shader_use(shader)
-        shader_set(shader, "transform", trans)
+        shader_set(shader, "model", model)
+        shader_set(shader, "view", view)
+        shader_set(shader, "projection", projection)
 
         gl.BindVertexArray(vao)
         gl.DrawElements(gl.TRIANGLES, len(indices), gl.UNSIGNED_INT, nil)
