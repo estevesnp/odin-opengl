@@ -4,6 +4,7 @@ import "base:runtime"
 import "core:c"
 import "core:fmt"
 import "core:log"
+import "core:math"
 import "core:math/linalg/glsl"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
@@ -153,6 +154,9 @@ main :: proc() {
     shader_set_i32(shader, "texture2", 1)
 
     gl.Enable(gl.DEPTH_TEST)
+    glfw.SetInputMode(window, glfw.CURSOR, glfw.CURSOR_DISABLED)
+    glfw.SetCursorPosCallback(window, mouse_callback)
+    glfw.SetScrollCallback(window, scroll_callback)
 
     cam: Camera = {
         pos   = {0, 0, 3},
@@ -169,7 +173,7 @@ main :: proc() {
         view := glsl.mat4LookAt(cam.pos, cam.pos + cam.front, cam.up)
 
         projection: glsl.mat4 = 1
-        projection *= glsl.mat4Perspective(glsl.radians(f32(45)), 800.0 / 600.0, 0.1, 100)
+        projection *= glsl.mat4Perspective(glsl.radians(fov), 800.0 / 600.0, 0.1, 100)
 
         shader_use(shader)
         shader_set(shader, "view", view)
@@ -241,6 +245,56 @@ process_input :: proc(window: glfw.WindowHandle, cam: ^Camera) {
     if glfw.GetKey(window, glfw.KEY_D) == glfw.PRESS {
         cam.pos += glsl.normalize(glsl.cross(cam.front, cam.up)) * cam_speed
     }
+
+    if glfw.GetKey(window, glfw.KEY_SPACE) == glfw.PRESS {
+        cam.pos.y += cam_speed
+    }
+    if glfw.GetKey(window, glfw.KEY_LEFT_CONTROL) == glfw.PRESS {
+        cam.pos.y -= cam_speed
+    }
+
+    cam.front = calculate_front()
+}
+
+yaw: f32 = -90
+pitch: f32 = 0
+
+calculate_front :: proc() -> [3]f32 {
+    front: [3]f32
+
+    front.x = math.cos(glsl.radians(yaw)) * math.cos(glsl.radians(pitch))
+    front.y = math.sin(glsl.radians(pitch))
+    front.z = math.sin(glsl.radians(yaw)) * math.cos(glsl.radians(pitch))
+
+    return glsl.normalize(front)
+}
+
+sens: f32 : 0.03
+last_x: f32 = 400
+last_y: f32 = 300
+first_mouse := true
+mouse_callback :: proc "c" (window: glfw.WindowHandle, pos_x, pos_y: c.double) {
+    if first_mouse {
+        last_x = f32(pos_x)
+        last_y = f32(pos_y)
+        first_mouse = false
+    }
+
+    offset_x := f32(pos_x) - last_x
+    offset_y := last_y - f32(pos_y)
+    last_x = f32(pos_x)
+    last_y = f32(pos_y)
+
+    offset_x *= sens
+    offset_y *= sens
+
+    yaw += offset_x
+    pitch = clamp(pitch + offset_y, -89, 89)
+}
+
+fov: f32 = 45
+scroll_callback :: proc "c" (window: glfw.WindowHandle, offset_x, offset_y: c.double) {
+    fov = clamp(fov - f32(offset_y), 1, 45)
 }
 
 framebuffer_callback :: proc "c" (window: glfw.WindowHandle, width, height: c.int) {
