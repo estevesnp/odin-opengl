@@ -4,7 +4,6 @@ import "base:runtime"
 import "core:c"
 import "core:fmt"
 import "core:log"
-import "core:math"
 import "core:math/linalg/glsl"
 import gl "vendor:OpenGL"
 import "vendor:glfw"
@@ -13,9 +12,13 @@ import stbi "vendor:stb/image"
 VERTEX_SHADER := #load("./shaders/vertex.glsl", cstring)
 FRAGMENT_SHADER := #load("./shaders/fragment.glsl", cstring)
 
+cam: Camera
+
 main :: proc() {
     context.logger = log.create_console_logger()
     defer log.destroy_console_logger(context.logger)
+
+    cam = camera_init()
 
     glfw.Init()
     defer glfw.Terminate()
@@ -158,22 +161,16 @@ main :: proc() {
     glfw.SetCursorPosCallback(window, mouse_callback)
     glfw.SetScrollCallback(window, scroll_callback)
 
-    cam: Camera = {
-        pos   = {0, 0, 3},
-        front = {0, 0, -1},
-        up    = {0, 1, 0},
-    }
-
     for !glfw.WindowShouldClose(window) {
         process_input(window, &cam)
 
         gl.ClearColor(0.2, 0.3, 0.3, 1)
         gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-        view := glsl.mat4LookAt(cam.pos, cam.pos + cam.front, cam.up)
+        view := camera_view_matrix(cam)
 
         projection: glsl.mat4 = 1
-        projection *= glsl.mat4Perspective(glsl.radians(fov), 800.0 / 600.0, 0.1, 100)
+        projection *= glsl.mat4Perspective(glsl.radians(cam.fov), 800.0 / 600.0, 0.1, 100)
 
         shader_use(shader)
         shader_set(shader, "view", view)
@@ -196,12 +193,6 @@ main :: proc() {
         glfw.SwapBuffers(window)
         glfw.PollEvents()
     }
-}
-
-Camera :: struct {
-    pos:   [3]f32,
-    front: [3]f32,
-    up:    [3]f32,
 }
 
 load_texture :: proc(filename: cstring, format: u32) -> u32 {
@@ -233,68 +224,35 @@ process_input :: proc(window: glfw.WindowHandle, cam: ^Camera) {
     cam_speed := 2.5 * delta_time
 
     if glfw.GetKey(window, glfw.KEY_W) == glfw.PRESS {
-        cam.pos += cam.front * cam_speed
+        camera_update_keyboard(cam, .Front, cam_speed)
     }
     if glfw.GetKey(window, glfw.KEY_S) == glfw.PRESS {
-        cam.pos -= cam.front * cam_speed
+        camera_update_keyboard(cam, .Back, cam_speed)
     }
 
     if glfw.GetKey(window, glfw.KEY_A) == glfw.PRESS {
-        cam.pos -= glsl.normalize(glsl.cross(cam.front, cam.up)) * cam_speed
+        camera_update_keyboard(cam, .Left, cam_speed)
     }
     if glfw.GetKey(window, glfw.KEY_D) == glfw.PRESS {
-        cam.pos += glsl.normalize(glsl.cross(cam.front, cam.up)) * cam_speed
+        camera_update_keyboard(cam, .Right, cam_speed)
     }
 
     if glfw.GetKey(window, glfw.KEY_SPACE) == glfw.PRESS {
-        cam.pos.y += cam_speed
+        camera_update_keyboard(cam, .Up, cam_speed)
     }
     if glfw.GetKey(window, glfw.KEY_LEFT_CONTROL) == glfw.PRESS {
-        cam.pos.y -= cam_speed
+        camera_update_keyboard(cam, .Down, cam_speed)
     }
-
-    cam.front = calculate_front()
 }
 
-yaw: f32 = -90
-pitch: f32 = 0
-
-calculate_front :: proc() -> [3]f32 {
-    front: [3]f32
-
-    front.x = math.cos(glsl.radians(yaw)) * math.cos(glsl.radians(pitch))
-    front.y = math.sin(glsl.radians(pitch))
-    front.z = math.sin(glsl.radians(yaw)) * math.cos(glsl.radians(pitch))
-
-    return glsl.normalize(front)
-}
-
-sens: f32 : 0.03
-last_x: f32 = 400
-last_y: f32 = 300
-first_mouse := true
 mouse_callback :: proc "c" (window: glfw.WindowHandle, pos_x, pos_y: c.double) {
-    if first_mouse {
-        last_x = f32(pos_x)
-        last_y = f32(pos_y)
-        first_mouse = false
-    }
-
-    offset_x := f32(pos_x) - last_x
-    offset_y := last_y - f32(pos_y)
-    last_x = f32(pos_x)
-    last_y = f32(pos_y)
-
-    offset_x *= sens
-    offset_y *= sens
-
-    yaw += offset_x
-    pitch = clamp(pitch + offset_y, -89, 89)
+    context = runtime.default_context()
+    camera_update_mouse_movement(&cam, f32(pos_x), f32(pos_y))
 }
 
-fov: f32 = 45
 scroll_callback :: proc "c" (window: glfw.WindowHandle, offset_x, offset_y: c.double) {
-    fov = clamp(fov - f32(offset_y), 1, 45)
+    context = runtime.default_context()
+    camera_update_mouse_scroll(&cam, f32(offset_y))
 }
 
 framebuffer_callback :: proc "c" (window: glfw.WindowHandle, width, height: c.int) {
