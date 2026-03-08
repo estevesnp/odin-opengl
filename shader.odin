@@ -32,6 +32,7 @@ shader_set :: proc {
     shader_set_bool,
     shader_set_i32,
     shader_set_f32,
+    shader_set_mat4,
 }
 
 shader_set_bool :: proc(shader: Shader, name: cstring, val: bool) {
@@ -44,6 +45,11 @@ shader_set_i32 :: proc(shader: Shader, name: cstring, val: i32) {
 
 shader_set_f32 :: proc(shader: Shader, name: cstring, val: f32) {
     gl.Uniform1f(gl.GetUniformLocation(shader, name), val)
+}
+
+shader_set_mat4 :: proc(shader: Shader, name: cstring, val: matrix[4, 4]f32) {
+    mat := val
+    gl.UniformMatrix4fv(gl.GetUniformLocation(shader, name), 1, gl.FALSE, raw_data(&mat))
 }
 
 shader_init :: proc(vertex_path, fragment_path: string) -> (Shader, Error) {
