@@ -50,10 +50,47 @@ main :: proc() {
 
     vertices := [?]f32{
         // positions       // texture coords
-         0.5,  0.5, 0.0,   1.0, 1.0,   // top right
-         0.5, -0.5, 0.0,   1.0, 0.0,   // bottom right
-        -0.5, -0.5, 0.0,   0.0, 0.0,   // bottom left
-        -0.5,  0.5, 0.0,   0.0, 1.0    // top left
+        -0.5, -0.5, -0.5,  0.0, 0.0,
+         0.5, -0.5, -0.5,  1.0, 0.0,
+         0.5,  0.5, -0.5,  1.0, 1.0,
+         0.5,  0.5, -0.5,  1.0, 1.0,
+        -0.5,  0.5, -0.5,  0.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 0.0,
+
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+         0.5, -0.5,  0.5,  1.0, 0.0,
+         0.5,  0.5,  0.5,  1.0, 1.0,
+         0.5,  0.5,  0.5,  1.0, 1.0,
+        -0.5,  0.5,  0.5,  0.0, 1.0,
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+
+        -0.5,  0.5,  0.5,  1.0, 0.0,
+        -0.5,  0.5, -0.5,  1.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+        -0.5,  0.5,  0.5,  1.0, 0.0,
+
+         0.5,  0.5,  0.5,  1.0, 0.0,
+         0.5,  0.5, -0.5,  1.0, 1.0,
+         0.5, -0.5, -0.5,  0.0, 1.0,
+         0.5, -0.5, -0.5,  0.0, 1.0,
+         0.5, -0.5,  0.5,  0.0, 0.0,
+         0.5,  0.5,  0.5,  1.0, 0.0,
+
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+         0.5, -0.5, -0.5,  1.0, 1.0,
+         0.5, -0.5,  0.5,  1.0, 0.0,
+         0.5, -0.5,  0.5,  1.0, 0.0,
+        -0.5, -0.5,  0.5,  0.0, 0.0,
+        -0.5, -0.5, -0.5,  0.0, 1.0,
+
+        -0.5,  0.5, -0.5,  0.0, 1.0,
+         0.5,  0.5, -0.5,  1.0, 1.0,
+         0.5,  0.5,  0.5,  1.0, 0.0,
+         0.5,  0.5,  0.5,  1.0, 0.0,
+        -0.5,  0.5,  0.5,  0.0, 0.0,
+        -0.5,  0.5, -0.5,  0.0, 1.0
     }
     indices := [?]u32{
         0, 1, 3,   // first triangle
@@ -103,14 +140,16 @@ main :: proc() {
     shader_set_i32(shader, "texture1", 0)
     shader_set_i32(shader, "texture2", 1)
 
+    gl.Enable(gl.DEPTH_TEST)
+
     for !glfw.WindowShouldClose(window) {
         process_input(window)
 
         gl.ClearColor(0.2, 0.3, 0.3, 1)
-        gl.Clear(gl.COLOR_BUFFER_BIT)
+        gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
         model: glsl.mat4 = 1
-        model *= glsl.mat4Rotate({1, 0, 0}, glsl.radians(f32(-55)))
+        model *= glsl.mat4Rotate({0.5, 1, 0}, f32(glfw.GetTime()) * glsl.radians(f32(50)))
 
         view: glsl.mat4 = 1
         view *= glsl.mat4Translate({0, 0, -3})
@@ -124,7 +163,8 @@ main :: proc() {
         shader_set(shader, "projection", projection)
 
         gl.BindVertexArray(vao)
-        gl.DrawElements(gl.TRIANGLES, len(indices), gl.UNSIGNED_INT, nil)
+        gl.DrawArrays(gl.TRIANGLES, 0, 36)
+        //gl.DrawElements(gl.TRIANGLES, len(indices), gl.UNSIGNED_INT, nil)
 
         glfw.SwapBuffers(window)
         glfw.PollEvents()
